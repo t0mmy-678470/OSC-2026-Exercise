@@ -31,6 +31,7 @@ struct sbiret sbi_ecall(int ext,
                         unsigned long arg4,
                         unsigned long arg5) {
     struct sbiret ret;
+    // 將 arg0 存到 a0 register
     register unsigned long a0 asm("a0") = (unsigned long)arg0;
     register unsigned long a1 asm("a1") = (unsigned long)arg1;
     register unsigned long a2 asm("a2") = (unsigned long)arg2;
@@ -39,6 +40,10 @@ struct sbiret sbi_ecall(int ext,
     register unsigned long a5 asm("a5") = (unsigned long)arg5;
     register unsigned long a6 asm("a6") = (unsigned long)fid;
     register unsigned long a7 asm("a7") = (unsigned long)ext;
+    // asm volatile ("指令" : 輸出 : 輸入 : 組合語言執行後會改變的項目);
+    // +: RW
+    // =: WO
+    // r: register
     asm volatile("ecall"
                  : "+r"(a0), "+r"(a1)
                  : "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6), "r"(a7)
@@ -57,6 +62,8 @@ struct sbiret sbi_ecall(int ext,
  */
 long sbi_get_spec_version(void) {
     // TODO: Implement this function
+    struct sbiret ret = sbi_ecall(0x10, 0, 0, 0, 0, 0, 0, 0);
+    return ret.value;
 }
 
 /**
@@ -67,6 +74,8 @@ long sbi_get_spec_version(void) {
  */
 long sbi_probe_extension(int extid) {
     // TODO: Implement this function
+    struct sbiret ret = sbi_ecall(0x10, 3, extid, 0, 0, 0, 0, 0);
+    return ret.value;
 }
 
 void start_kernel() {
