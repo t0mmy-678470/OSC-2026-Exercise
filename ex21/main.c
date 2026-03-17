@@ -34,16 +34,34 @@ static inline const void* align_up(const void* ptr, size_t align) {
     return (const void*)(((uintptr_t)ptr + align - 1) & ~(align - 1));
 }
 
-// int strncmp(char* str1, char* str2, int len) {
-//     int same = 1;
-//     for(int i=0;i<len;i++){
-//         if(str1[i] != str2[i]) {
-//             same = 0;
-//             break;
-//         }
-//     }
-//     return same;
-// }
+int strncmp2(char* node_name, char* path, int len) {
+    int i=0;
+    int same = 1;
+    int have_at = 0;
+    while(1) {
+        if(path[i] == '@') {
+            have_at = 1;
+            break;
+        }
+        if(path[i] == '\0') {
+            break;
+        }
+        i++;
+    }
+    
+    for(int i=0;i<len;i++){
+        if(node_name[i] != path[i]) {
+            if(!have_at){
+                if(node_name[i]=='@' && (path[i]=='/' || path[i]=='\0')) {
+                    break;
+                }
+            }
+            same = 0;
+            break;
+        }
+    }
+    return same;
+}
 
 int fdt_path_offset(const void* fdt, const char* path) {
     // TODO: Implement this function
@@ -69,7 +87,7 @@ int fdt_path_offset(const void* fdt, const char* path) {
             // check in correspond depth dir/dev
             if(cur_depth == matching_depth){
                 // check the same dir/dev name
-                if(!strncmp(node_name, path+path_idx[cur_depth], strlen(node_name))) {
+                if(strncmp2(node_name, path+path_idx[cur_depth], strlen(node_name))) {
                     if (++matching_depth == path_depth) {
                         return cur_off;
                     }
@@ -83,6 +101,7 @@ int fdt_path_offset(const void* fdt, const char* path) {
             cur_depth--;
             // device not found
             if( cur_depth+1 < matching_depth ){
+                printf("device not found!\n");
                 return -1;
             }
             cur_off += 4;

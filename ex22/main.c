@@ -46,16 +46,47 @@ static int hextoi(const char* s, int n) {
  * @param byte alignment
  * @return aligned number
  */
-static int align(int n, int byte) {
+static unsigned long align(unsigned long n, int byte) {
     return (n + byte - 1) & ~(byte - 1);
 }
 
 void initrd_list(const void* rd) {
     // TODO: Implement this function
+    struct cpio_t* cur = (struct cpio_t*)rd;
+    unsigned int namesize, filesize;
+    while(1) {
+        namesize = hextoi( cur->namesize, 8 );
+        filesize = hextoi( cur->filesize, 8 );
+    
+        if(!strcmp("TRAILER!!!", (char*)cur+sizeof(struct cpio_t))) break;
+
+        printf("%8ld %s\n", filesize, (char*)cur+sizeof(struct cpio_t));
+
+        cur = (struct cpio_t*)align(align((unsigned long)cur+sizeof(struct cpio_t)+namesize, 4)+filesize, 4);
+    }
 }
 
 void initrd_cat(const void* rd, const char* filename) {
     // TODO: Implement this function
+    struct cpio_t* cur = (struct cpio_t*)rd;
+    unsigned int namesize, filesize;
+    while(1) {
+        namesize = hextoi( cur->namesize, 8 );
+        filesize = hextoi( cur->filesize, 8 );
+    
+        if(!strcmp("TRAILER!!!", (char*)cur+sizeof(struct cpio_t))) break;
+
+        // printf("%8ld %s\n", filesize, (char*)cur+sizeof(struct cpio_t));
+        if(!strcmp(filename, (char*)cur+sizeof(struct cpio_t))){
+            char* file = (char*)align((unsigned long)cur+sizeof(struct cpio_t)+namesize, 4);
+            printf("%s\n", file);
+            return;
+        }
+
+        cur = (struct cpio_t*)align(align((unsigned long)cur+sizeof(struct cpio_t)+namesize, 4)+filesize, 4);
+    }
+
+    printf("initrd_cat: %s: No such file\n", filename);
 }
 
 int main() {
@@ -80,7 +111,8 @@ int main() {
     initrd_list(rd);
     initrd_cat(rd, "osc.txt");
     initrd_cat(rd, "test.txt");
-
+    // initrd_cat(rd, "penguin.txt");
+    
     free(rd);
     return 0;
 }
