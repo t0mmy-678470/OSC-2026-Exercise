@@ -33,7 +33,7 @@ static int hextoi(const char* s, int n) {
         r = r << 4;
         if (*s >= 'A')
             r += *s++ - 'A' + 10;
-        else if (*s >= 0)
+        else if (*s >= '0')
             r += *s++ - '0';
     }
     return r;
