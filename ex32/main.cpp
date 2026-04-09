@@ -32,10 +32,11 @@ void dump() {
 
 void memory_reserve(phys_addr_t base, size_t size) {
     // TODO: Implement this function
-    // std::cout << "[Reserve] Reserve address [ "<<base<<", 0x"<<std::hex<<size<<"). Range of pages: ["<<base/PAGE_SIZE<<", "<<(base+size)/PAGE_SIZE<<")" << std::endl;
-    if(size == 0) return;
+    std::cout << "[Reserve] Reserve address [ "<<base<<", 0x"<<std::hex<<size<<"). Range of pages: ["<<base/PAGE_SIZE<<", "<<(base+size)/PAGE_SIZE<<")" << std::endl;
 
     unsigned int start_pfn = base/PAGE_SIZE;
+    // std::cout << "start_pfn = " << start_pfn << std::endl;
+
     unsigned int end_pfn = (base+size-1)/PAGE_SIZE; // include
     int order = MAX_ORDER;
     while(1) {
@@ -52,7 +53,7 @@ void memory_reserve(phys_addr_t base, size_t size) {
                 if (page_order_head_pfn == start_pfn && end_pfn >= (page_order_head_pfn+(1<<order)-1)) {
                     (cur_page)->refcount = 1;
                     (cur_page)->order = order;
-                    cur = free_area[order].erase(cur);
+                    free_area[order].remove(cur_page);
 
                     start_pfn = page_order_head_pfn+(1<<order);
                     // check finish
@@ -62,47 +63,38 @@ void memory_reserve(phys_addr_t base, size_t size) {
                     // check still in same MAX_ORDER region
                     int offset = start_pfn % (1<<MAX_ORDER);
                     int base = 0;
-                    int next_order=MAX_ORDER-1;
                     if (offset) {
                         // compute new order
+                        order=MAX_ORDER-1;
                         while(1) {
                             // find new order
-                            if ( offset == base+(1<<next_order) ) {
+                            if ( offset == base+(1<<order) ) {
                                 break;
                             }
-                            else if (offset > base+(1<<next_order)) {
-                                base += (1<<next_order);
+                            else if (offset > base+(1<<order)) {
+                                base += (1<<order);
                             }
-                            next_order--;
-                            if(next_order<0) {
+                            order--;
+                            if(order<0) {
                                 std::cout<<"ERROR ORDER"<<std::endl;
                                 exit(0);
                             }
                         }
                     }
                     else {
-                        next_order = MAX_ORDER;
-                    }
-                    // dump();
-                    // if remain same order, continue the for loop
-                    if(order == next_order) {
-                        continue;
-                    }
-                    else {
-                        order = next_order;
+                        order = MAX_ORDER;
                     }
                 }
                 // partail overlap
                 // 先 free 掉然後丟到下一個 order 的 free list
                 else if(page_order_head_pfn < start_pfn || end_pfn < (page_order_head_pfn+(1<<order)-1)) {
-                    cur = free_area[order].erase(cur);
+                    free_area[order].remove(cur_page);
                     (cur_page)->order = order - 1;
                     buddy_page = get_buddy(cur_page, order-1);
                     buddy_page->order = order - 1;
                     free_area[order-1].push_front(buddy_page);
                     free_area[order-1].push_front(cur_page);
                     order--;
-                    // dump();
                 }
 
                 break;
@@ -124,42 +116,6 @@ void memory_reserve(phys_addr_t base, size_t size) {
     }
 }
 
-void memory_reserve2(phys_addr_t base, size_t size) {
-    if (size==0) return;
-
-    size_t start_pfn = base / PAGE_SIZE;
-    size_t end_pfn = (base+size+PAGE_SIZE-1) / PAGE_SIZE;
-
-    for (int order=MAX_ORDER ; order>=0 ; --order) {
-        auto it = free_area[order].begin();
-        while ( (it != free_area[order].end())) {
-            struct page* p = *it;
-            size_t pfn = p - mem_map.data();
-            size_t block_start = pfn;
-            size_t block_end = pfn + (1<<order);
-
-            if (block_end <= start_pfn || block_start >= end_pfn) {
-                ++it;
-                continue;
-            }
-
-            it = free_area[order].erase(it);
-            // full overlay
-            if (block_start>=start_pfn && block_end<=end_pfn) {
-                p->refcount = 1;
-                continue;
-            }
-            // partial overlay
-            int next_order = order - 1;
-            struct page* buddy = get_buddy(p, next_order);
-            p->order = next_order;
-            buddy->order = next_order;
-            free_area[next_order].push_front(p);
-            free_area[next_order].push_front(buddy);
-        }
-    }
-}
-
 void mm_init() {
     mem_map.resize(NUM_PAGES);
     free_area.resize(MAX_ORDER + 1);
@@ -168,7 +124,7 @@ void mm_init() {
         free_area[MAX_ORDER].push_back(&mem_map[i]);
     }
     dump();
-    memory_reserve2(0, 0x82a69510);
+    memory_reserve(0, 0x82a69510);
 }
 
 int main() {
