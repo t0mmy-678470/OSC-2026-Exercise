@@ -27,7 +27,7 @@ int hextoi(const char* s, int n) {
     return r;
 }
 
-int align(int n, int byte) {
+unsigned long align(unsigned long n, unsigned long byte) {
     return (n + byte - 1) & ~(byte - 1);
 }
 

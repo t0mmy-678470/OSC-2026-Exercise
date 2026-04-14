@@ -16,3 +16,6 @@ run: build $(TARGET) initramfs.cpio
 
 clean:
 	rm -f $(TARGET) $(TARGET).elf *.o
+
+debug: build $(TARGET) initramfs.cpio
+	$(QEMU) -M virt -m 8G -kernel $(TARGET) -display none -serial stdio -initrd initramfs.cpio -s -S

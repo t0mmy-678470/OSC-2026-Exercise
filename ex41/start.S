@@ -76,16 +76,16 @@ save_context:
 ret_from_exception:
     ld s0,  8 * 32(sp)
     andi s0, s0, (1 << 8)
-    bnez s0, 1f
+    bnez s0, 1f             # ????? s0 應該是0
 
-    addi s0, sp, 8 * 35
+    addi s0, sp, 8 * 35     # get origin kernel stack pointer to s0
     csrw sscratch, s0
 1:
     /* Restore context */
     ld s1,  8 * 31(sp)
     ld s2,  8 * 32(sp)
     csrw sepc, s1
-    csrw sstatus, s2
+    csrw sstatus, s2        # set to U-Mode
     ld ra,  8 *  0(sp)
     ld gp,  8 *  2(sp)
     ld tp,  8 *  3(sp)

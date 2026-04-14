@@ -3,7 +3,7 @@ extern void uart_putc(char c);
 extern void uart_puts(const char* s);
 extern void uart_hex(unsigned long h);
 extern int hextoi(const char* s, int n);
-extern int align(int n, int byte);
+extern unsigned long align(unsigned long n, unsigned long byte);
 extern int memcmp(const void* s1, const void* s2, int n);
 extern void* alloc_page();
 
@@ -38,6 +38,27 @@ int exec(const char* filename) {
         int datasize = align(filesize, 4);
         if (!memcmp(p + sizeof(struct cpio_t), filename, namesize)) {
             // TODO: Finish this function
+            // go to U-Mode
+            uart_puts("p = ");
+            uart_hex((unsigned long)p);
+            uart_puts("\n");
+            unsigned long epc = align((unsigned long)p + sizeof(struct cpio_t) + namesize, 4);
+            uart_puts("sepc set to ");
+            uart_hex(epc);
+            uart_puts("\n");
+            asm volatile(
+                // set sstatus
+                "csrr t0, sstatus   \n"
+                "li t1, 0x100       \n"
+                "not t1, t1         \n"
+                "and t0, t0, t1    \n"  // SPP = 1<<8 = 0x100
+                "csrw sstatus, t0   \n"
+                // set sepc
+                "csrw sepc, %0      \n"
+                "sret               \n"
+                 : // output
+                 : "r"((unsigned long)epc)// input
+                 : "t0", "t1", "memory");
         }
         p += headsize + datasize;
     }
@@ -45,12 +66,54 @@ int exec(const char* filename) {
 }
 
 // TODO: Define the trap frame structure
-struct pt_regs {};
+struct pt_regs {
+    unsigned long ra;
+    unsigned long sscratch;
+    unsigned long gp;
+    unsigned long tp;
+    unsigned long t0;
+    unsigned long t1;
+    unsigned long t2;
+    unsigned long s0;
+    unsigned long s1;
+    unsigned long a0;
+    unsigned long a1;
+    unsigned long a2;
+    unsigned long a3;
+    unsigned long a4;
+    unsigned long a5;
+    unsigned long a6;
+    unsigned long a7;
+    unsigned long s2;
+    unsigned long s3;
+    unsigned long s4;
+    unsigned long s5;
+    unsigned long s6;
+    unsigned long s7;
+    unsigned long s8;
+    unsigned long s9;
+    unsigned long s10;
+    unsigned long s11;
+    unsigned long t3;
+    unsigned long t4;
+    unsigned long t5;
+    unsigned long t6;
+    unsigned long sepc;
+    unsigned long sstatus;
+    unsigned long scause;
+    unsigned long stval;
+};
 
 void do_trap(struct pt_regs* regs) {
     // TODO: Implement this function
     // (1) Print the sepc and scause registers
     // (2) Increment the sepc register by 4 for traps
+    uart_puts("spec: ");
+    uart_hex(regs->sepc);
+    uart_puts(", scause: ");
+    uart_hex(regs->scause);    
+    uart_puts("\n");
+    regs->sepc += 4;
 }
 
 void start_kernel() {
