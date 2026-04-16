@@ -16,3 +16,6 @@ run: build $(TARGET)
 
 clean:
 	rm -f $(TARGET) $(TARGET).elf *.o
+
+debug: build $(TARGET)
+	$(QEMU) -M virt -m 8G -kernel $(TARGET) -display none -serial stdio -s -S

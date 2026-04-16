@@ -6,13 +6,13 @@ extern void uart_hex(unsigned long h);
 #define UART_BASE 0x10000000UL
 #define UART_RBR  (unsigned char*)(UART_BASE + 0x0)
 #define UART_THR  (unsigned char*)(UART_BASE + 0x0)
-#define UART_IER  (unsigned char*)(UART_BASE + 0x1)
-#define UART_IIR  (unsigned char*)(UART_BASE + 0x2)
-#define UART_MCR  (unsigned char*)(UART_BASE + 0x4)
-#define UART_LSR  (unsigned char*)(UART_BASE + 0x5)
+#define UART_IER  (unsigned char*)(UART_BASE + 0x1) // 0x1/0x4
+#define UART_IIR  (unsigned char*)(UART_BASE + 0x2) // 0x2/0x8
+#define UART_MCR  (unsigned char*)(UART_BASE + 0x4) // 0x4/0x10
+#define UART_LSR  (unsigned char*)(UART_BASE + 0x5) // 0x5/0x14
 #define LSR_DR    (1 << 0)
 #define LSR_TDRQ  (1 << 5)
-#define UART_IRQ  0x0a
+#define UART_IRQ  0x0a      // UART Interrupt Request
 
 #define PLIC_BASE            0xc000000UL
 #define PLIC_PRIORITY(irq)   (PLIC_BASE + (irq) * 4)
@@ -24,7 +24,9 @@ unsigned long boot_cpu_hartid = 0;
 
 void uart_init() {
     // TODO: Enable RX interrupt
+    *(volatile unsigned char*)UART_IER |= 1<<0;
     // TODO: Enable UART interrupt
+    *(volatile unsigned char*)UART_MCR |= 1<<3;
 }
 
 void irq_enable() {
@@ -40,17 +42,30 @@ void enable_external_interrupt() {
 void plic_init() {
     // TODO: Implement this function
     // (1) Set UART interrupt priority
+    *(volatile int*)PLIC_PRIORITY(UART_IRQ) |= 1;
     // (2) Set UART interrupt enable for the boot hart
+    *(volatile int*)(PLIC_ENABLE(boot_cpu_hartid)+UART_IRQ/32) |= 1<<(UART_IRQ%32);
     // (3) Set threshold for the boot hart
-    // (4) Enable external interrupts
+    *(volatile int*)PLIC_THRESHOLD(boot_cpu_hartid) &= 0;
+    // (4) Enable external interrupts  
+    enable_external_interrupt();
 }
 
 int plic_claim() {
     // TODO: Implement this function
+    for(int i=0;i<1024/32;i++){
+        int irq = *(volatile int*)((unsigned long)PLIC_CLAIM(boot_cpu_hartid)+i);
+        if(irq) {
+            return i*32 + irq;
+        }
+    }
+
+    return 0;
 }
 
 void plic_complete(int irq) {
     // TODO: Implement this function
+    *(volatile unsigned int*)(PLIC_CLAIM(boot_cpu_hartid)+irq/32) |= irq%32;
 }
 
 void do_trap() {
