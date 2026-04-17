@@ -53,19 +53,21 @@ void plic_init() {
 
 int plic_claim() {
     // TODO: Implement this function
-    for(int i=0;i<1024/32;i++){
-        int irq = *(volatile int*)((unsigned long)PLIC_CLAIM(boot_cpu_hartid)+i);
-        if(irq) {
-            return i*32 + irq;
-        }
-    }
+    // for(int i=0;i<1024/32;i++){
+    //     int irq = *(volatile int*)((unsigned long)PLIC_CLAIM(boot_cpu_hartid)+i);
+    //     if(irq) {
+    //         return i*32 + irq;
+    //     }
+    // }
 
-    return 0;
+    // return 0;
+    return *(volatile int*)PLIC_CLAIM(boot_cpu_hartid);
 }
 
 void plic_complete(int irq) {
     // TODO: Implement this function
-    *(volatile unsigned int*)(PLIC_CLAIM(boot_cpu_hartid)+irq/32) |= irq%32;
+    // *(volatile unsigned int*)(PLIC_CLAIM(boot_cpu_hartid)+irq/32) |= irq%32;
+    *(volatile unsigned int*)PLIC_CLAIM(boot_cpu_hartid) = irq;
 }
 
 void do_trap() {
