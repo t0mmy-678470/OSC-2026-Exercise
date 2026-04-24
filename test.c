@@ -1,102 +1,28 @@
-// #include <stdio.h>
-// #include <string.h>
-
-// int main(){
-//     char* s = "hello";
-//     printf("%d\n", strlen(s));
-// }
-
-// #include <stdio.h>
-
-// typedef struct list_head {
-//     struct list_head* prev;
-//     struct list_head* next;
-// }LIST_HEAD;
-
-// typedef struct page {
-//     int order;
-//     int refcount;
-//     int refcount2;
-//     char f[3];
-//     struct list_head list;
-// } PAGE;
-
-// #define LIST_ENTRY(ptr, type, memb)  ((type*)((unsigned long)ptr-(unsigned long)&(((type*)0)->memb)))
-
-// int main() {
-//     PAGE p = {1,2,3,'c', 'a', '\0', {(struct list_head*)0x8080, (struct list_head*)0x9090}};
-//     printf("%p: %d %d %d %s %p %p\n", &p, p.order, p.refcount, p.refcount2, p.f, p.list.next, p.list.prev);
-//     printf("%p\n",LIST_ENTRY(&p.list, PAGE, list));
-// }
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct test {
-	union 
-	{
-		unsigned int num;
-		struct
-		{			
-			unsigned inuse:16;
-			unsigned objects:15;
-			unsigned frozen:1;
-		};
-	};
+struct cpio_t {
+    char magic[6];
+    char ino[8];
+    char mode[8];
+    char uid[8];
+    char gid[8];
+    char nlink[8];
+    char mtime[8];
+    char filesize[8];
+    char devmajor[8];
+    char devminor[8];
+    char rdevmajor[8];
+    char rdevminor[8];
+    char namesize[8];
+    char check[8];
 };
-typedef struct list_head {
-    struct list_head* prev;
-    struct list_head* next;
-}LIST_HEAD;
-typedef struct page {
-    struct list_head list;
-    unsigned short order;
-    short refcount;
-    short compound_head;
-    short type;
-	union {
-        struct {    // slab
-            // unsigned long __page_flags;
-            struct kmem_cache *slab_cache;
-            // struct list_head slab_list;
-            void *freelist;		// null when no objects or passed list to cache
-            struct {
-                unsigned short inuse;      // num of active objects
-                unsigned short objects;    // num of objects
-                // unsigned frozen:1;      // ?
-            };
-        };
-    };
-} PAGE;
 
 #define NUM_PAGES 0x280000
-PAGE mem_map[NUM_PAGES];
 int main() {
-	// struct test test1, test2;
-	// test1.num = 0xffffffff;
-	// test2.num = 0x7fffffff;
-	// int a=0, b=0;
-	// if((a=b));
-	// else {
-	// 	a=10;
-	// }
-	// printf("%d\n", a);
-    char* a1 = (char*) malloc(0x22);
-    strcpy(a1, "AAAAAAA");
-    printf("%s\n", a1);
-    char* a2 = (char*) malloc(sizeof(char) * 0x100);
-    strcpy(a2, "BBBBBBBBBBBBBBB");
-    char* a3 = (char*) malloc(sizeof(char) * 0x100);
-    strcpy(a3, "CCCCCCCCCCCCCCCCCCCCCCC");
-
-    free(a1);
-    free(a2);
-    free(a3);
-
-	// printf("end\n");
 	
-	printf("size of PAGE: %ld\n", sizeof(PAGE));
+	printf("size: %ld\n", sizeof(struct cpio_t));
 
     return 0;
 }

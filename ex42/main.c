@@ -44,7 +44,7 @@ void plic_init() {
     // (1) Set UART interrupt priority
     *(volatile int*)PLIC_PRIORITY(UART_IRQ) |= 1;
     // (2) Set UART interrupt enable for the boot hart
-    *(volatile int*)(PLIC_ENABLE(boot_cpu_hartid)+UART_IRQ/32) |= 1<<(UART_IRQ%32);
+    *(volatile int*)(PLIC_ENABLE(boot_cpu_hartid)+UART_IRQ/32*4) |= 1<<(UART_IRQ%32);
     // (3) Set threshold for the boot hart
     *(volatile int*)PLIC_THRESHOLD(boot_cpu_hartid) &= 0;
     // (4) Enable external interrupts  
@@ -70,11 +70,58 @@ void plic_complete(int irq) {
     *(volatile unsigned int*)PLIC_CLAIM(boot_cpu_hartid) = irq;
 }
 
-void do_trap() {
+struct pt_regs {
+    unsigned long ra;
+    unsigned long sscratch;
+    unsigned long gp;
+    unsigned long tp;
+    unsigned long t0;
+    unsigned long t1;
+    unsigned long t2;
+    unsigned long s0;
+    unsigned long s1;
+    unsigned long a0;
+    unsigned long a1;
+    unsigned long a2;
+    unsigned long a3;
+    unsigned long a4;
+    unsigned long a5;
+    unsigned long a6;
+    unsigned long a7;
+    unsigned long s2;
+    unsigned long s3;
+    unsigned long s4;
+    unsigned long s5;
+    unsigned long s6;
+    unsigned long s7;
+    unsigned long s8;
+    unsigned long s9;
+    unsigned long s10;
+    unsigned long s11;
+    unsigned long t3;
+    unsigned long t4;
+    unsigned long t5;
+    unsigned long t6;
+    unsigned long sepc;
+    unsigned long sstatus;
+    unsigned long scause;
+    unsigned long stval;
+};
+
+void do_trap(struct pt_regs* regs) {
     int irq = plic_claim();
     if (irq == UART_IRQ) {
         char c = *UART_RBR;
-        uart_putc(c == '\r' ? '\n' : c);
+        // uart_putc(c == '\r' ? '\n' : c);
+        uart_puts("scause: ");
+        uart_hex(regs->scause);    
+        uart_puts("\nspec: ");
+        uart_hex(regs->sepc);
+        uart_puts("\nstval: ");
+        uart_hex(regs->stval);
+        uart_puts("\nirq: ");
+        uart_hex(irq);
+        uart_puts("\n");
     }
     if (irq)
         plic_complete(irq);

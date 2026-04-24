@@ -47,17 +47,17 @@ int exec(const char* filename) {
             uart_hex(epc);
             uart_puts("\n");
             asm volatile(
-                // set sstatus
+                // set sstatus: go to user mode
                 "csrr t0, sstatus   \n"
                 "li t1, 0x100       \n"
                 "not t1, t1         \n"
                 "and t0, t0, t1    \n"  // SPP = 1<<8 = 0x100
                 "csrw sstatus, t0   \n"
-                // set sepc
+                // set sepc: set user process addr
                 "csrw sepc, %0      \n"
                 "sret               \n"
                  : // output
-                 : "r"((unsigned long)epc)// input
+                 : "r"((unsigned long)epc)  // input
                  : "t0", "t1", "memory");
         }
         p += headsize + datasize;
