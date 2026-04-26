@@ -6,6 +6,12 @@ extern void* kmalloc(unsigned long size);
 extern void* alloc_page();
 
 #define STACK_SIZE 0x1000
+#define LIST_ENTRY(ptr, type, memb)  ((type*)((unsigned long)ptr-(unsigned long)&(((type*)0)->memb)))
+
+typedef struct list_head {
+    struct list_head* prev;
+    struct list_head* next;
+}LIST_HEAD;
 
 struct task_struct {
     struct thread_struct {
@@ -17,20 +23,45 @@ struct task_struct {
     unsigned long kernel_sp;
     unsigned long user_sp;
     unsigned long stack;
+    struct task_struct* prev;
     struct task_struct* next;
 };
 
+static inline void list_pop_front(LIST_HEAD* list_head) {
+    list_head->next->next->prev = list_head;
+    list_head->next = list_head->next->next;
+}
+static inline void list_push_back(LIST_HEAD* list_head, LIST_HEAD* new) {
+    new->next = list_head;
+    new->prev = list_head->prev;
+    list_head->prev->next = new;
+    list_head->prev = new;
+}
+static inline void list_push_front(LIST_HEAD* list_head, LIST_HEAD* new) {
+    new->next = list_head->next;
+    new->prev = list_head;
+    list_head->next->prev = new;
+    list_head->next = new;
+}
+
 static int nr_threads = 0;
-static struct task_struct* run_queue = 0;
+static struct task_struct* run_queue;
 
 static void enqueue(struct task_struct** queue, struct task_struct* task) {
     if (*queue == 0) {
         *queue = task;
+        task->prev = task;
         task->next = task;
     } else {
-        struct task_struct* tail = (*queue)->next;
-        (*queue)->next = task;
-        task->next = tail;
+        // struct task_struct* tail = (*queue)->next;
+        // (*queue)->next = task;
+        // task->next = tail;
+
+        task->next = (*queue);
+        task->prev = (*queue)->prev;
+        (*queue)->prev->next = task;
+        (*queue)->prev = task;
+        (*queue) = task;
     }
 }
 
@@ -43,6 +74,25 @@ extern void switch_to(struct task_struct* prev, struct task_struct* next);
 
 void schedule() {
     // TODO: Implement this function
+    // caller-saved register 可以動到，但 callee-saved register 不行
+    register struct task_struct* prev asm("tp");
+    struct task_struct* next;
+    if(prev == run_queue){
+        run_queue = prev->next;
+    }
+    else{
+        // remove itself
+        prev->next->prev = prev->prev;
+        prev->prev->next = prev->next;
+        // push to last
+        prev->next = run_queue;
+        prev->prev = run_queue->prev;
+        run_queue->prev->next = prev;
+        run_queue->prev = prev;
+    }
+    
+    next = run_queue;
+    switch_to(prev, next);
 }
 
 void idle() {
@@ -59,7 +109,7 @@ void foo() {
         uart_puts(" ");
         uart_hex(i);
         uart_puts("\n");
-        for (int i = 0; i < 100000000; i++)
+        for (int i = 0; i < 1000000; i++)
             ;
         schedule();
     }
@@ -88,6 +138,16 @@ void start_kernel() {
 
 void do_trap() {
     uart_puts("Kernel panic - do_trap\n");
+    unsigned long scause, sepc;
+    asm volatile(
+        "csrr %0, scause;"
+        "csrr %1, sepc;"
+        : "=r"(scause), "=r"(sepc)
+    );
+    uart_hex(scause);
+    uart_puts("\n");
+    uart_hex(sepc);
+    uart_puts("\n");
     while (1)
         ;
 }
