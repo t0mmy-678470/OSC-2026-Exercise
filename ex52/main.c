@@ -27,5 +27,6 @@ void start_kernel() {
     uart_puts("\nStarting kernel ...\n");
     // TODO: Initialize the QEMU frame buffer device
     video_init();
-    display_video();
+    while(1);
+    // display_video();
 }

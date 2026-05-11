@@ -4,6 +4,10 @@
 
 extern int strncmp(const char* s1, const char* s2, int n);
 extern void* memcpy(void* dst, const void* src, int n);
+extern char uart_getc(void);
+extern void uart_putc(char c);
+extern void uart_puts(const char* s);
+extern void uart_hex(unsigned long h);
 
 #define FB_BASE   0x87000000
 #define FB_WIDTH  1920
@@ -86,8 +90,10 @@ static int fw_cfg_find_file(const char* name) {
     for (int i = 0; i < count; i++) {
         struct FWCfgFile file;
         fw_cfg_dma_transfer(&file, sizeof(file), FW_CFG_DMA_CTL_READ);
-        if (strncmp(name, file.name, sizeof(file.name)) == 0)
+        if (strncmp(name, file.name, sizeof(file.name)) == 0){
+            uart_puts("find\n");
             return bswap16(file.select);
+        }
     }
     return -1;
 }
