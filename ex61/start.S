@@ -2,12 +2,17 @@
 .global _start
 _start:
     // TODO: Jump to high address
+    la sp, _end
     call    setup_vm
+    li a3, 0xffffffc000000000
+    la a4, 1f
+    add a4, a4, a3
+    jr a4
 
 .align 2
 1:
-
     // TODO: load virtual address of sp
+    add sp, sp, a3
 
     la      a3, __bss_start
     la      a4, __bss_stop
