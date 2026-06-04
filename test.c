@@ -20,9 +20,19 @@ struct cpio_t {
 };
 
 #define NUM_PAGES 0x280000
+#define PAGE_SIZE     (1UL << 12) 
+#define ENTRIES_PER_TABLE  512
+#define KERNEL_PGD_INDEX   ((PAGE_OFFSET >> PGD_SHIFT) & 0x1FF)
+#define LINEAR_MAP_GIB     4
+
+static unsigned long __attribute__((section(".data"), aligned(PAGE_SIZE)))
+    pgd[ENTRIES_PER_TABLE] = { 0 };
+
+static unsigned long __attribute__((section(".data"), aligned(PAGE_SIZE)))
+    pmd[LINEAR_MAP_GIB][ENTRIES_PER_TABLE] = { { 0 } };
 int main() {
 	
-	printf("size: %ld\n", sizeof(struct cpio_t));
+	printf("%p\n%p\n%p\n", pmd, &pmd[0], &pmd[0][0]);
 
     return 0;
 }

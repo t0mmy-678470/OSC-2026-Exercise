@@ -54,21 +54,23 @@ void setup_vm(void) {
     // TODO: Set up page tables for identity mapping and kernel mapping
     unsigned long uart_phy = 0x0000000010000000;
     unsigned long uart_vir = 0xffffffc010000000;
-    unsigned long start_high_vir = PAGE_OFFSET + (unsigned long)&_start;
+    unsigned long pa = (unsigned long)&_start & SUPER_L1;
+    unsigned long va = pa + PAGE_OFFSET;
 
     // hight-half mapping
-    pgd[(start_high_vir>>PGD_SHIFT)&0x1ff] = MAKE_PTE((unsigned long)&pmd[HH_MAP_idx], PROT_NON_LEAF);
+    pgd[(va>>PGD_SHIFT)&0x1ff] = MAKE_PTE((unsigned long)&pmd[HH_MAP_idx], PROT_NON_LEAF);
+    // pmd[HH_MAP_idx][(start_high_vir>>PMD_SHIFT)&0x1ff] = MAKE_PTE(((unsigned long)(&_start))&SUPER_L1, PROT_KERNEL); 
     // identity mapping
-    pgd[(((unsigned long)&_start)>>PGD_SHIFT)&0x1ff] = MAKE_PTE((unsigned long)&pmd[ID_MAP_idx], PROT_NON_LEAF);
-    for(int i=0 ; i<=(&_end-&_start)/PAGE_SIZE ; i++) {
-        unsigned long pa = (unsigned long)(&_start) + i*PAGE_SIZE;
-        unsigned long va = pa + PAGE_OFFSET;
-        // hight-half mapping
-        pmd[HH_MAP_idx][(va>>PMD_SHIFT)&0x1ff] = MAKE_PTE(pa&SUPER_L1, PROT_KERNEL); 
-        // identity mapping
-        pmd[ID_MAP_idx][(pa>>PMD_SHIFT)&0x1ff] = MAKE_PTE(pa&SUPER_L1, PROT_KERNEL); 
+    pgd[(pa>>PGD_SHIFT)&0x1ff] = MAKE_PTE((unsigned long)&pmd[ID_MAP_idx], PROT_NON_LEAF);
+    // pmd[ID_MAP_idx][(((unsigned long)(&_start))>>PMD_SHIFT)&0x1ff] = MAKE_PTE(((unsigned long)(&_start))&SUPER_L1, PROT_KERNEL); 
+    
+    for(int i=0 ; i<ENTRIES_PER_TABLE ; i++) {
+        pmd[HH_MAP_idx][(va>>PMD_SHIFT)&0x1ff] = MAKE_PTE(pa, PROT_KERNEL); 
+        pmd[ID_MAP_idx][(pa>>PMD_SHIFT)&0x1ff] = MAKE_PTE(pa, PROT_KERNEL); 
+        va+=PMD_SIZE; pa+=PMD_SIZE;
     }
-    // hight-half mapping
+
+    // uart mapping
     pgd[(uart_vir>>PGD_SHIFT)&0x1ff] = MAKE_PTE((unsigned long)&pmd[UART_MAP_idx], PROT_NON_LEAF);
     pmd[UART_MAP_idx][(uart_vir>>PMD_SHIFT)&0x1ff] = MAKE_PTE(uart_phy&SUPER_L1, PROT_KERNEL); 
 
@@ -83,12 +85,8 @@ void setup_vm(void) {
 void drop_identity_map(void) {
     // TODO: Drop identity mapping
     // identity mapping
-    unsigned long phy_start = (((unsigned long)&_start)-PAGE_OFFSET);
-    pgd[(phy_start>>PGD_SHIFT)&0x1ff] = MAKE_PTE(0, 0);
-    for(int i=0 ; i<=(&_end-&_start)/PAGE_SIZE ; i++) {
-        unsigned long pa = (unsigned long)(&_start) + i*PAGE_SIZE - PAGE_OFFSET;
-        // identity mapping
-        pmd[ID_MAP_idx][(pa>>PMD_SHIFT)&0x1ff] = MAKE_PTE(0, 0); 
+    for(int i=0;i<0x100;i++) {
+        pgd[i] = 0;
     }
 
     asm volatile(

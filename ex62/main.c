@@ -37,10 +37,17 @@ extern void* alloc_page();
 #define virt_to_phys(x) ((unsigned long)(x) - PAGE_OFFSET)
 #define phys_to_virt(x) ((unsigned long)(x) + PAGE_OFFSET)
 
+/* VA bit-field shifts (Sv39) */
+#define PGD_SHIFT     30 
+#define PMD_SHIFT     21
+#define PTE_SHIFT     12
+
 unsigned long __attribute__((section(".data"), aligned(PAGE_SIZE))) pgd[512];
 
 void setup_vm() {
+    memset(pgd, 0, 0x1000);
     for (int i = 0; i < NUM_PAGES / (PGD_SIZE / PAGE_SIZE); i++) {
+        // 預設是 page_size = 1 GiB 的 super page
         pgd[256 + i] = (i * (PGD_SIZE / PAGE_SIZE)) << 10 | PROT_KERNEL;
     }
     asm("csrw satp, %0" ::"r"(PFN_DOWN((unsigned long)pgd) |
@@ -50,6 +57,28 @@ void setup_vm() {
 
 static void pagewalk(unsigned long va, unsigned long pa, unsigned long prot) {
     // TODO: Implement this function
+    // Get current PGD
+    // Walk through level 2 (PGD) and level 1 (PMD)
+    unsigned long vpn = va >> PTE_SHIFT;
+    unsigned long* page_table = pgd;
+    int idx;
+    for (int level = 2; level > 0; level--) {
+        idx = (vpn >> (level*9)) & 0x1ff;
+        // page table present
+        if ( page_table[idx] & (PTE_V) ) {
+            page_table = (unsigned long*)(page_table[idx]>>10<<12);
+        }
+        // go to next level
+        else {
+            unsigned long* next_page_table = alloc_page();
+            memset(next_page_table, 0, 0x1000);
+            page_table[idx] = virt_to_phys((unsigned long)next_page_table)>>12<<10 | (PTE_V);
+            page_table = next_page_table;
+        }
+    }
+    // Reached level 0 (PTE)
+    idx = vpn & 0x1ff;
+    page_table[idx] = pa>>12<<10 | prot;
 }
 
 void map_pages(unsigned long va,
